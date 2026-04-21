@@ -1,5 +1,23 @@
 #include <Windows.h>
 #include<cstdint>
+#include<string>
+#include<format>
+
+//--------------------------------
+//関数
+//--------------------------------
+
+void Log(const std::string& message) {
+	OutputDebugStringA(message.c_str());
+}
+
+//string -> wstring
+std::wstring ConvertString(const std::string& str);
+
+//wstring -> string
+std::string ConvertString(const std::wstring& str);
+
+//---------------------------------
 
 // ウィンドウプロシージャ
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg,
@@ -23,6 +41,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg,
 
 //Windowsアプリへのインポート(main関数)
 int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
+
+	//--------------------------------
+	// ウィンドウ
+	//--------------------------------
 
 	WNDCLASS wc{};
 
@@ -51,7 +73,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	//クライアント領域を元に実際のサイズにwrcを変更してもらう
 	AdjustWindowRect(&wrc, WS_OVERLAPPEDWINDOW, false);
 
-
 	//ウィンドウの生成
 	HWND hwnd = CreateWindow(
 		wc.lpszClassName,      //利用するクラス名
@@ -72,6 +93,13 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 
 	//出力ウィンドウへの文字出力
 	OutputDebugStringA("Hello,DirectX!\n");
+
+	//--------------------------------
+	//文字列を格納する
+	std::string str0{ "STRING!!!" };
+
+	//整列を文字列にする
+	std::string str1{ std::to_string(10) };
 
 
 	MSG msg{};
