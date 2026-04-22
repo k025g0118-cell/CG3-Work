@@ -12,9 +12,12 @@
 #include<d3d12.h>
 #include<dxgi1_6.h>
 #include<cassert>
+#include<dbghelp.h>
+#include<strsafe.h>
 
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")
+#pragma comment(lib,"Dbghelp.lib")
 
 //--------------------------------
 //関数
@@ -58,6 +61,43 @@ void Log(const std::string& message) {
 	OutputDebugStringA(message.c_str());
 }
 
+static LONG WINAPI ExportDump(EXCEPTION_POINTERS* exception) {
+
+	// 時刻を取得して、時刻を名前に入れたファイルを作成。Dumpsディレクトリ以下に出力
+	SYSTEMTIME time;
+	GetLocalTime(&time);
+	wchar_t filePath[MAX_PATH] = { 0 };
+	CreateDirectory(L"./Dumps", nullptr);
+	StringCchPrintfW(filePath, MAX_PATH, L"./Dumps/%04d-%02d%02d-%02d%02d.dmp",
+		time.wYear, time.wMonth, time.wDay, time.wHour, time.wMinute);
+
+	HANDLE dumpFileHandle = CreateFile(
+		filePath,
+		GENERIC_READ | GENERIC_WRITE,
+		FILE_SHARE_WRITE | FILE_SHARE_READ,
+		0,
+		CREATE_ALWAYS,
+		0,
+		0
+	);
+
+	// processId（このexeのID）とクラッシュ（例外）の発生したthreadIdを取得
+	DWORD processId = GetCurrentProcessId();
+	DWORD threadId = GetCurrentThreadId();
+
+	// 設定情報を入力
+	MINIDUMP_EXCEPTION_INFORMATION minidumpInformation{ 0 };
+	minidumpInformation.ThreadId = threadId;
+	minidumpInformation.ExceptionPointers = exception;
+	minidumpInformation.ClientPointers = TRUE;
+
+	// Dumpを出力。MiniDumpNormalは最低限の情報を出力するフラグ
+	MiniDumpWriteDump(GetCurrentProcess(), processId, dumpFileHandle, MiniDumpNormal, &minidumpInformation, nullptr, nullptr);
+
+	// 他に例外がいないなら例外ハンドラがあれば実行。通常はプロセスを終了する
+	return EXCEPTION_EXECUTE_HANDLER;
+}
+
 //---------------------------------
 
 // ウィンドウプロシージャ
@@ -79,9 +119,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg,
 	return DefWindowProc(hwnd, msg, wparam, lparam);
 }
 
-
 //Windowsアプリへのインポート(main関数)
 int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
+
+	//誰も捕捉しなかった場合に(Unhandled)、捕捉する関数を登録
+	SetUnhandledExceptionFilter(ExportDump);
 
 	//--------------------------------
 	// ウィンドウ
@@ -221,6 +263,10 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	assert(device != nullptr);
 	Log("Complete create D3D12Device!!!\n"); //初期化完了のログを出す
 
+
+	uint32_t* p = nullptr;
+	*p = 100;
+
 	MSG msg{};
 	//ウィンドウの×ボタンが押されるまでループ
 	while (msg.message != WM_QUIT) {
@@ -241,3 +287,5 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 
 	return 0;
 }
+
+
