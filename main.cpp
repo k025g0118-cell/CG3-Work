@@ -263,9 +263,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	assert(device != nullptr);
 	Log("Complete create D3D12Device!!!\n"); //初期化完了のログを出す
 
+	
 
-	uint32_t* p = nullptr;
-	*p = 100;
 
 	MSG msg{};
 	//ウィンドウの×ボタンが押されるまでループ
