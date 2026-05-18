@@ -4,18 +4,58 @@
 #include<format>
 
 //--------------------------------
-//関数
+// 関数
 //--------------------------------
 
+// string -> wstring
+std::wstring ConvertString(const std::string& str) {
+
+	if (str.empty()) {
+		return std::wstring();
+	}
+
+	int sizeNeeded = MultiByteToWideChar(CP_UTF8,0,str.c_str(),-1,nullptr,0);
+
+	if (sizeNeeded == 0) {
+		return std::wstring();
+	}
+
+	std::wstring result(sizeNeeded, 0);
+
+	MultiByteToWideChar(CP_UTF8,0,str.c_str(),-1,&result[0],sizeNeeded);
+
+	return result;
+}
+
+// wstring -> string
+std::string ConvertString(const std::wstring& str) {
+
+	if (str.empty()) {
+		return std::string();
+	}
+
+	int sizeNeeded = WideCharToMultiByte(CP_UTF8,0,str.c_str(),-1,nullptr,0,nullptr,nullptr);
+
+	if (sizeNeeded == 0) {
+		return std::string();
+	}
+
+	std::string result(sizeNeeded, 0);
+
+	WideCharToMultiByte(CP_UTF8,0,str.c_str(),-1,&result[0],sizeNeeded,nullptr,nullptr);
+
+	return result;
+}
+
+// string版ログ
 void Log(const std::string& message) {
 	OutputDebugStringA(message.c_str());
 }
 
-//string -> wstring
-std::wstring ConvertString(const std::string& str);
-
-//wstring -> string
-std::string ConvertString(const std::wstring& str);
+// wstring版ログ
+void Log(const std::wstring& message) {
+	Log(ConvertString(message));
+}
 
 //---------------------------------
 
@@ -101,6 +141,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	//整列を文字列にする
 	std::string str1{ std::to_string(10) };
 
+	Log(std::format("ClientSize = {} x {}\n", kClientWidth, kClientHeight));
 
 	MSG msg{};
 	//ウィンドウの×ボタンが押されるまでループ
