@@ -60,42 +60,9 @@ void Log(const std::wstring& message) {
 	Log(ConvertString(message));
 }
 
-std::wstring ConvertString(const std::string& str) {
-	if (str.empty()) {
-		return std::wstring();
-	}
-
-	auto sizeNeeded = MultiByteToWideChar(CP_UTF8, 0, reinterpret_cast<const char*>(&str[0]), static_cast<int>(str.size()), NULL, 0);
-	if (sizeNeeded == 0) {
-		return std::wstring();
-	}
-	std::wstring result(sizeNeeded, 0);
-	MultiByteToWideChar(CP_UTF8, 0, reinterpret_cast<const char*>(&str[0]), static_cast<int>(str.size()), &result[0], sizeNeeded);
-	return result;
-}
-
-std::string ConvertString(const std::wstring& str) {
-	if (str.empty()) {
-		return std::string();
-	}
-
-	auto sizeNeeded = WideCharToMultiByte(CP_UTF8, 0, str.data(), static_cast<int>(str.size()), NULL, 0, NULL, NULL);
-	if (sizeNeeded == 0) {
-		return std::string();
-	}
-	std::string result(sizeNeeded, 0);
-	WideCharToMultiByte(CP_UTF8, 0, str.data(), static_cast<int>(str.size()), result.data(), sizeNeeded, NULL, NULL);
-	return result;
-}
-
 //ログをファイルに書き出す
 void Log(std::ostream& os, const std::string& message) {
 	os << message << std::endl;
-	OutputDebugStringA(message.c_str());
-}
-
-//出力ウィンドウに文字を出す
-void Log(const std::string& message) {
 	OutputDebugStringA(message.c_str());
 }
 
@@ -209,6 +176,20 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 		nullptr                //オプション
 	);
 
+#ifdef _DEBUG
+
+	ID3D12Debug1* debugController = nullptr;
+	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)))) {
+		//デバッグレイヤーを有効化する
+		debugController->EnableDebugLayer();
+
+		//さらにGPU側でもチェックを行うようにする
+		debugController->SetEnableGPUBasedValidation(TRUE);
+	}
+
+#endif // DEBUG
+
+
 	//ウィンドウを表示する
 	ShowWindow(hwnd, SW_SHOW);
 
@@ -303,6 +284,42 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	//デバイスの生成が上手くいかなかったので起動できない
 	assert(device != nullptr);
 	Log("Complete create D3D12Device!!!\n"); //初期化完了のログを出す
+
+#ifdef _DEBUG
+
+	ID3D12InfoQueue* infoQueue = nullptr;
+	if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&infoQueue)))) {
+		//やばいエラー時に止まる
+		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
+
+		//エラー時に止まる
+		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
+
+		//警告時に止まる
+		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
+
+		//抑制するメッセージのID
+		D3D12_MESSAGE_ID denyIds[] = {
+			D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE
+		};
+
+		//抑制するレベル
+		D3D12_MESSAGE_SEVERITY severities[] = { D3D12_MESSAGE_SEVERITY_INFO };
+		D3D12_INFO_QUEUE_FILTER filter{};
+		filter.DenyList.NumIDs = _countof(denyIds);
+		filter.DenyList.pIDList = denyIds;
+		filter.DenyList.NumSeverities = _countof(severities);
+		filter.DenyList.pSeverityList = severities;
+
+		//指定したメッセージの表示を抑制する
+		infoQueue->PushStorageFilter(&filter);
+
+		//解放
+		infoQueue->Release();
+	}
+
+#endif // _DEBUG
+
 
 	//コマンドキューを生成する
 	ID3D12CommandQueue* commandQueue = nullptr;
