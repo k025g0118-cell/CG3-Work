@@ -70,6 +70,7 @@ void Log(const std::string& message) {
 
 // wstring版ログ
 void Log(const std::wstring& message) {
+
 	Log(ConvertString(message));
 }
 
@@ -212,9 +213,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	//--------------------------------
 	//文字列を格納する
 	std::string str0{ "STRING!!!" };
-
-	//整列を文字列にする
-	std::string str1{ std::to_string(10) };
 
 	Log(std::format("ClientSize = {} x {}\n", kClientWidth, kClientHeight));
 
