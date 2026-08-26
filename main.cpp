@@ -16,6 +16,7 @@
 #include<strsafe.h>
 #include<dxgidebug.h>
 #include<dxcapi.h>
+#include<numbers>
 
 #include"Matrix4x4.h"
 #include"MakeAffineMatrix.h"
@@ -928,8 +929,14 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 
 	assert(SUCCEEDED(hr));
 
+	// 分割数
+	const int kSubdivision = 16;
+
+	//頂点数
+	uint32_t vertexIndex = kSubdivision * kSubdivision * 6;
+
 	// 実際に頂点リソースを作る
-	ID3D12Resource* vertexResource = CreateBufferResource(device, sizeof(VertexData) * 6);
+	ID3D12Resource* vertexResource = CreateBufferResource(device, sizeof(VertexData) * vertexIndex);
 
 	assert(SUCCEEDED(hr));
 
@@ -940,7 +947,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
 
 	// 使用するリソースのサイズは頂点3つ分のサイズ
-	vertexBufferView.SizeInBytes = sizeof(VertexData) * 6;
+	vertexBufferView.SizeInBytes = sizeof(VertexData) * vertexIndex;
 
 	// 1頂点あたりのサイズ
 	vertexBufferView.StrideInBytes = sizeof(VertexData);
@@ -951,29 +958,77 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	// 書き込むためのアドレスを取得
 	vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
 
-	// 左下
-	vertexData[0].position = {-0.5f, -0.5f, 0.0f, 1.0f};
-	vertexData[0].texcoord = { 0.0f,1.0f };
+	// 経度分割1つ分の角度 φ
+	const float kLonEvery = std::numbers::pi_v<float> * 2.0f / float(kSubdivision);
 
-	// 上
-	vertexData[1].position = { 0.0f, 0.5f, 0.0f, 1.0f };
-	vertexData[1].texcoord = { 0.5f,0.0f };
+	// 緯度分割1つ分の角度 θ
+	const float kLatEvery = std::numbers::pi_v<float> / float(kSubdivision);
+	
+	// 緯度方向
+	for (int latIndex = 0; latIndex < kSubdivision; ++latIndex) {
+		float lat = -std::numbers::pi_v<float> / 2.0f + kLatEvery * latIndex;
+		float latNext = lat + kLatEvery;
 
-	// 右下
-	vertexData[2].position = { 0.5f, -0.5f, 0.0f, 1.0f };
-	vertexData[2].texcoord = { 1.0f,1.0f };
+		// V座標
+		float v = 1.0f - float(latIndex) / float(kSubdivision);
+		float vNext = 1.0f - float(latIndex + 1) / float(kSubdivision);
 
-	// 左下2
-	vertexData[3].position = { -0.5f, -0.5f, 0.5f, 1.0f };
-	vertexData[3].texcoord = { 0.0f,1.0f };
+		// 経度方向
+		for (int lonIndex = 0; lonIndex < kSubdivision; ++lonIndex) {
+			float lon = lonIndex * kLonEvery;
+			float lonNext = lon + kLonEvery;
 
-	// 上2
-	vertexData[4].position = { 0.0f, 0.0f, 0.0f, 1.0f };
-	vertexData[4].texcoord = { 0.5f,0.0f };
+			// U座標
+			float u = float(lonIndex) / float(kSubdivision);
+			float uNext = float(lonIndex + 1) / float(kSubdivision);
 
-	// 右下2
-	vertexData[5].position = { 0.5f, -0.5f, -0.5f, 1.0f };
-	vertexData[5].texcoord = { 1.0f,1.0f };
+			uint32_t start = (latIndex * kSubdivision + lonIndex) * 6;
+
+			// ① 左下
+			vertexData[start + 0].position = {
+				cosf(lat) * cosf(lon),
+				sinf(lat),
+				cosf(lat) * sinf(lon),
+				1.0f
+			};
+			vertexData[start + 0].texcoord = { u, v };
+
+			// ② 左上
+			vertexData[start + 1].position = {
+				cosf(latNext) * cosf(lon),
+				sinf(latNext),
+				cosf(latNext) * sinf(lon),
+				1.0f
+			};
+			vertexData[start + 1].texcoord = { u, vNext };
+
+			// ③ 右下
+			vertexData[start + 2].position = {
+				cosf(lat) * cosf(lonNext),
+				sinf(lat),
+				cosf(lat) * sinf(lonNext),
+				1.0f
+			};
+			vertexData[start + 2].texcoord = { uNext, v };
+
+			// ④ 右下
+			vertexData[start + 3].position = vertexData[start + 2].position;
+			vertexData[start + 3].texcoord = { uNext, v };
+
+			// ⑤ 左上
+			vertexData[start + 4].position = vertexData[start + 1].position;
+			vertexData[start + 4].texcoord = { u, vNext };
+
+			// ⑥ 右上
+			vertexData[start + 5].position = {
+				cosf(latNext) * cosf(lonNext),
+				sinf(latNext),
+				cosf(latNext) * sinf(lonNext),
+				1.0f
+			};
+			vertexData[start + 5].texcoord = { uNext, vNext };
+		}
+	}
 
 	//Sprite用の頂点リソースを作る
 	ID3D12Resource* vertexResourceSprite = CreateBufferResource(device, sizeof(VertexData) * 6);
@@ -1086,7 +1141,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	Matrix4x4 projectionMatrixSprite = MakeOrthographicMatrix(0.0f, 0.0f, float(kClientWidth), float(kClientHeight), 0.0f, 100.0f);
 	Matrix4x4 worldViewProjectionMatrixSprite = worldMatrixSprite * (viewMatrixSprite * projectionMatrixSprite);
 	*transformationMatrixDataSprite = worldViewProjectionMatrixSprite;
-
+	
+	
 #ifdef USE_IMGUI
 	// ImGuiの初期化
 	IMGUI_CHECKVERSION();
@@ -1180,6 +1236,26 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 			);
 
 			ImGui::SliderFloat3("Color", &materialData->x, 0.0f, 1.0f);
+
+			//矩形のトランスフォーム
+			ImGui::Separator();
+			ImGui::Text("Sprite");
+
+			ImGui::SliderFloat3("Sprite Scale", &transformSprite.scale.x, 0.1f, 5.0f);
+
+			ImGui::SliderFloat3(
+				"Sprite Rotate",
+				&transformSprite.rotate.x,
+				-3.14f,
+				3.14f
+			);
+
+			ImGui::SliderFloat3(
+				"Sprite Translate",
+				&transformSprite.translate.x,
+				-640.0f,
+				640.0f
+			);
 			
 			//ImGuiの内部コマンドを生成する
 			ImGui::Render();
@@ -1192,6 +1268,17 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 			projectionMatrix = MakePerspectiveFovMatrix(0.45f, float(kClientWidth) / float(kClientHeight), 0.1f, 100.0f);
 			worldViewProjectionMatrix = worldMatrix * (viewMatrix * projectionMatrix);
 			*wvpData = worldViewProjectionMatrix;
+
+			worldMatrixSprite = MakeAffineMatrix(
+				transformSprite.scale,
+				transformSprite.rotate,
+				transformSprite.translate
+			);
+
+			worldViewProjectionMatrixSprite =
+				worldMatrixSprite * (viewMatrixSprite * projectionMatrixSprite);
+
+			*transformationMatrixDataSprite = worldViewProjectionMatrixSprite;
 
 			// これから書き込むバックバッファのインデックスを取得
 			UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
@@ -1269,7 +1356,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 
 			// 描画！（DrawCall/ドローコール）。3頂点で1つのインスタンス。インスタンスについては今後
-			commandList->DrawInstanced(6, 1, 0, 0);
+			commandList->DrawInstanced(vertexIndex, 1, 0, 0);
 
 			//Spriteの描画。変更が必要なものだけ変更する
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);    // VBVを設定
