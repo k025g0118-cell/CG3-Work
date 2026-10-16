@@ -5,6 +5,12 @@ struct TransformationMatrix{
     float32_t4x4 World;
 };
 
+struct Material{
+    float32_t4 color;
+    int32_t enableLighting;
+    float32_t4x4 uvTransform;
+};
+
 ConstantBuffer<TransformationMatrix> gTransformationMatrix : register(b0);
 //ConstantBuffer<DirectionalLight> gDirectionalLight : register(b1);
 

@@ -219,3 +219,118 @@ struct Matrix4x4 {
         return result;
     }
 };
+
+struct Matrix3x3 {
+    float m[3][3];
+
+    //1. 行列の加法
+    Matrix3x3 operator+(const Matrix4x4& matrix) const {
+        Matrix3x3 result{};
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                result.m[i][j] = m[i][j] + matrix.m[i][j];
+            }
+        }
+
+        return result;
+    }
+
+    //2. 行列の減法
+    Matrix3x3 operator-(const Matrix3x3& matrix) const {
+        Matrix3x3 result{};
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                result.m[i][j] = m[i][j] - matrix.m[i][j];
+            }
+        }
+
+        return result;
+    }
+
+    //3. 行列の積
+    Matrix3x3 operator*(const Matrix3x3& matrix) const {
+        Matrix3x3 result{};
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                result.m[i][j] = m[i][0] * matrix.m[0][j] + m[i][1] * matrix.m[1][j] + m[i][2] * matrix.m[2][j];
+            }
+        }
+
+        return result;
+    }
+
+    //4. 逆行列
+    Matrix3x3 Inverse() const {
+        Matrix3x3 result{};
+
+        // 行列の各要素
+        float a = m[0][0];
+        float b = m[0][1];
+        float c = m[0][2];
+
+        float d = m[1][0];
+        float e = m[1][1];
+        float f = m[1][2];
+
+        float g = m[2][0];
+        float h = m[2][1];
+        float i = m[2][2];
+
+        // 行列式
+        float det =
+            a * (e * i - f * h)
+            - b * (d * i - f * g)
+            + c * (d * h - e * g);
+
+        // 逆行列が存在しない場合
+        if (std::abs(det) < 1.0e-6f) {
+            return Matrix3x3::MakeIdentity3x3();
+        }
+
+        // 行列式の逆数
+        float invDet = 1.0f / det;
+
+        // 逆行列の各要素
+        result.m[0][0] = (e * i - f * h) * invDet;
+        result.m[0][1] = (c * h - b * i) * invDet;
+        result.m[0][2] = (b * f - c * e) * invDet;
+
+        result.m[1][0] = (f * g - d * i) * invDet;
+        result.m[1][1] = (a * i - c * g) * invDet;
+        result.m[1][2] = (c * d - a * f) * invDet;
+
+        result.m[2][0] = (d * h - e * g) * invDet;
+        result.m[2][1] = (b * g - a * h) * invDet;
+        result.m[2][2] = (a * e - b * d) * invDet;
+
+        return result;
+    }
+
+    //5. 転置行列
+    Matrix3x3 Transpose() const {
+        Matrix3x3 result{};
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                result.m[i][j] = m[j][i];
+            }
+        }
+
+        return result;
+    }
+
+    //6. 単位行列の作成
+    static Matrix3x3 MakeIdentity3x3() {
+        Matrix3x3 result{};
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                if (i == j) {
+                    result.m[i][j] = 1.0f;
+                } else {
+                    result.m[i][j] = 0.0f;
+                }
+            }
+        }
+
+        return result;
+    }
+};
